@@ -98,21 +98,27 @@ function App() {
       // Handle the message based on type
       setSharedData(prev => {
         if (data.type === 'append' && prev.value[data.field]) {
+          const updatedValue = { ...prev.value[data.field] };
+          
+          // Dynamically handle all array fields in the value object
+          Object.keys(data.value).forEach(key => {
+            if (Array.isArray(data.value[key])) {
+              updatedValue[key] = (updatedValue[key] || []).concat(data.value[key]);
+            }
+          });
+
           return {
             ...prev,
             value: {
               ...prev.value,
-              [data.field]: {
-                ...prev.value[data.field],
-                max: prev.value[data.field].max.concat(data.value.max),
-                rms: prev.value[data.field].rms.concat(data.value.rms)
-              }
+              [data.field]: updatedValue
             },
             lastUpdate: new Date(),
             status: 'updating'
           };
         }
         
+        // Default behavior (replace)
         return {
           ...prev,
           value: {
@@ -215,6 +221,13 @@ function App() {
         return 'text-gray-500';
     }
   };
+
+  //shared slider state
+  const [startIndex, setStartIndex] = useState(0);
+  const maxLength = Math.max(
+    ...(sharedData.value.res ? Object.values(sharedData.value.res).map(arr => arr.length) : [0]),
+    ...(sharedData.value.force ? Object.values(sharedData.value.force).map(arr => arr.length) : [0])
+  );
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -324,20 +337,23 @@ function App() {
                 Residual
               </h2>
               <div className="text-gray-600">
-              {sharedData.value && 'res' in sharedData.value ? (
-              <TimeSeriesPlot 
-                data={sharedData.value.res}
-                title="Residuals"
-                yAxisLabel="Values"
-              />
-            ) : (
-              <div className="p-4 text-gray-500">No data available</div>
-            )}
+                {sharedData.value && 'res' in sharedData.value ? (
+                  <TimeSeriesPlot 
+                    key="residual-plot" // Add this
+                    data={sharedData.value.res}
+                    title="Residuals"
+                    yAxisLabel="Residual"
+                    startIndex={startIndex}
+                    onStartIndexChange={setStartIndex}
+                    maxLength={maxLength}
+                  />
+                ) : (
+                  <div className="p-4 text-gray-500">No data available</div>
+                )}
               </div>
             </div>
           );
-
-
+        
         case 'forces':
           return (
             <div className="bg-white rounded-lg shadow-md p-6">
@@ -345,15 +361,19 @@ function App() {
                 Forces
               </h2>
               <div className="text-gray-600">
-              {sharedData.value && 'force' in sharedData.value ? (
-              <TimeSeriesPlot 
-                data={sharedData.value.force}
-                title="Forces"
-                yAxisLabel="Values"
-              />
-            ) : (
-              <div className="p-4 text-gray-500">No data available</div>
-            )}
+                {sharedData.value && 'force' in sharedData.value ? (
+                  <TimeSeriesPlot 
+                    key="forces-plot" // Add this
+                    data={sharedData.value.force}
+                    title="Forces"
+                    yAxisLabel="Force"
+                    startIndex={startIndex}
+                    onStartIndexChange={setStartIndex}
+                    maxLength={maxLength}
+                  />
+                ) : (
+                  <div className="p-4 text-gray-500">No data available</div>
+                )}
               </div>
             </div>
           );

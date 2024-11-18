@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   LineChart,
   Line,
@@ -16,11 +16,13 @@ interface TimeSeriesPlotProps {
   };
   title?: string;
   yAxisLabel?: string;
+  startIndex: number;
+  onStartIndexChange: (index: number) => void;
+  maxLength: number;
 }
 
 const COLORS = ['#2563eb', '#dc2626', '#16a34a', '#9333ea', '#ea580c', '#0891b2', '#4f46e5'];
 
-// Format number in scientific notation with 3 decimal places
 const formatScientific = (value: number): string => {
   if (value === null || isNaN(value)) return 'N/A';
   return value.toExponential(3);
@@ -30,16 +32,13 @@ const TimeSeriesPlot: React.FC<TimeSeriesPlotProps> = ({
   data,
   title = 'Time Series Plot',
   yAxisLabel = 'Value',
+  startIndex,
+  onStartIndexChange,
+  maxLength,
 }) => {
-  const [visibleSeries, setVisibleSeries] = useState<Set<string>>(new Set(Object.keys(data)));
+  // Local states for this instance
   const [scale, setScale] = useState<'linear' | 'log'>('linear');
-  const [startIndex, setStartIndex] = useState(0);
-  const [maxLength, setMaxLength] = useState(0);
-
-  useEffect(() => {
-    const length = Math.max(...Object.values(data).map(arr => arr?.length || 0));
-    setMaxLength(length);
-  }, [data]);
+  const [visibleSeries, setVisibleSeries] = useState<Set<string>>(new Set(Object.keys(data)));
 
   try {
     if (!data || typeof data !== 'object') {
@@ -92,7 +91,7 @@ const TimeSeriesPlot: React.FC<TimeSeriesPlotProps> = ({
               <input
                 type="radio"
                 className="form-radio text-blue-600"
-                name="scale"
+                name={`scale-${title}`}
                 value="linear"
                 checked={scale === 'linear'}
                 onChange={(e) => setScale(e.target.value as 'linear' | 'log')}
@@ -103,7 +102,7 @@ const TimeSeriesPlot: React.FC<TimeSeriesPlotProps> = ({
               <input
                 type="radio"
                 className="form-radio text-blue-600"
-                name="scale"
+                name={`scale-${title}`}
                 value="log"
                 checked={scale === 'log'}
                 onChange={(e) => setScale(e.target.value as 'linear' | 'log')}
@@ -200,7 +199,7 @@ const TimeSeriesPlot: React.FC<TimeSeriesPlotProps> = ({
             min={0}
             max={Math.max(0, maxLength - 1)}
             value={startIndex}
-            onChange={(e) => setStartIndex(Number(e.target.value))}
+            onChange={(e) => onStartIndexChange(Number(e.target.value))}
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
           />
         </div>

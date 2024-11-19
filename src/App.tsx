@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import TimeSeriesPlot from './components/TimeSeriesPlot';
+import Viewer from './components/Viewer';
 
 // Message history utilities
 const MAX_MESSAGE_LENGTH = 50;
@@ -87,7 +88,7 @@ function App() {
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
-      
+  
       // Update websocket state with truncated history
       setWsState(prev => ({
         ...prev,
@@ -99,14 +100,14 @@ function App() {
       setSharedData(prev => {
         if (data.type === 'append' && prev.value[data.field]) {
           const updatedValue = { ...prev.value[data.field] };
-          
+  
           // Dynamically handle all array fields in the value object
           Object.keys(data.value).forEach(key => {
             if (Array.isArray(data.value[key])) {
               updatedValue[key] = (updatedValue[key] || []).concat(data.value[key]);
             }
           });
-
+  
           return {
             ...prev,
             value: {
@@ -117,13 +118,16 @@ function App() {
             status: 'updating'
           };
         }
-        
-        // Default behavior (replace)
+  
+        // Modified default behavior to preserve existing subfields
         return {
           ...prev,
           value: {
             ...prev.value,
-            [data.field]: data.value
+            [data.field]: {
+              ...prev.value[data.field], // Preserve existing subfields
+              ...data.value // Add new subfields
+            }
           },
           lastUpdate: new Date(),
           status: 'updating'
@@ -228,6 +232,41 @@ function App() {
     ...(sharedData.value.res ? Object.values(sharedData.value.res).map(arr => arr.length) : [0]),
     ...(sharedData.value.force ? Object.values(sharedData.value.force).map(arr => arr.length) : [0])
   );
+
+  // // Your mesh data
+  // const meshData = {
+  //   "1": {
+  //     dx: 0.1,
+  //     normal: [0.0, 0.0, 1.0],
+  //     points: [
+  //       [-3.0, -3.0, 0.0],
+  //       [0.0, 0.0, 0.0],
+  //       [3.0, 3.0, 0.0]
+  //     ]
+  //   },
+  //   "2": {
+  //     dx: 0.2,
+  //     normal: [0.0, 0.0, 1.0],
+  //     points: [
+  //       [-3.0, -3.0, 0.0],
+  //       [0.0, 0.0, 0.0],
+  //       [3.0, 3.0, 0.0]
+  //     ]
+  //   }
+  // };
+  // const geometryData = {
+  //   edges: [
+  //     [[-1.0, -1.0, 0.0], [1.0, 1.0, 0.0]],
+  //     [[1.0, -1.0, 0.0], [-1.0, 1.0, 0.0]]
+  //   ],
+  //   boundary: [
+  //     [[-2.0, -2.0, 0.0], [2.0, -2.0, 0.0]],
+  //     [[2.0, -2.0, 0.0], [2.0, 2.0, 0.0]]
+  //   ],
+  //   vertices: [
+  //     [[0.0, 0.0, 0.0], [0.0, 0.1, 0.0]], // Short vertical line to represent vertex
+  //   ]
+  // };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -378,6 +417,23 @@ function App() {
             </div>
           );
 
+          case 'viewer':
+            return (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                  Viewer
+                </h2>
+                <div className="text-gray-600">
+                  <Viewer 
+                    mesh={sharedData.value.mesh}
+                    // geometry={geometryData}
+                    geometry={sharedData.value.geometry}
+                    value_on_mesh={sharedData.value.value_on_mesh}
+                  />
+                </div>
+              </div>
+            );
+
 
       default:
         return null;
@@ -386,7 +442,8 @@ function App() {
 
   return (
     <div className="w-full min-h-screen bg-gray-50 p-4">
-      <div className="max-w-4xl mx-auto mt-8">
+      <div className="mx-auto mt-8">
+      {/* <div className="max-w-4xl mx-auto mt-8"> */}
         <div className="flex space-x-2 mb-[-1px]">
           <Tab 
             title="Monitor" 
@@ -412,6 +469,11 @@ function App() {
             title="Forces" 
             isActive={activeTab === 'forces'} 
             onClick={() => setActiveTab('forces')} 
+          />
+          <Tab 
+            title="Viewer" 
+            isActive={activeTab === 'viewer'} 
+            onClick={() => setActiveTab('viewer')} 
           />
         </div>
 

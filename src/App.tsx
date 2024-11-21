@@ -69,7 +69,7 @@ const Tab: React.FC<TabProps> = ({ title, isActive, onClick }) => (
 );
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'monitor' | 'websocket' | 'settings' | 'residual' | 'forces'>('monitor');
+  const [activeTab, setActiveTab] = useState<'websocket' | 'settings' | 'residual' | 'forces' | 'viewer'>('websocket');
   const [sharedData, setSharedData] = useState<SharedData>({
     value: {},
     lastUpdate: null,
@@ -89,19 +89,16 @@ function App() {
     try {
       const data = JSON.parse(event.data);
   
-      // Update websocket state with truncated history
       setWsState(prev => ({
         ...prev,
         lastMessage: data,
         messageHistory: updateMessageHistory(prev.messageHistory, event.data)
       }));
   
-      // Handle the message based on type
       setSharedData(prev => {
         if (data.type === 'append' && prev.value[data.field]) {
           const updatedValue = { ...prev.value[data.field] };
   
-          // Dynamically handle all array fields in the value object
           Object.keys(data.value).forEach(key => {
             if (Array.isArray(data.value[key])) {
               updatedValue[key] = (updatedValue[key] || []).concat(data.value[key]);
@@ -119,14 +116,13 @@ function App() {
           };
         }
   
-        // Modified default behavior to preserve existing subfields
         return {
           ...prev,
           value: {
             ...prev.value,
             [data.field]: {
-              ...prev.value[data.field], // Preserve existing subfields
-              ...data.value // Add new subfields
+              ...prev.value[data.field],
+              ...data.value
             }
           },
           lastUpdate: new Date(),
@@ -215,17 +211,6 @@ function App() {
     connectWebSocket();
   };
 
-  const getStatusColor = (status: SharedData['status']) => {
-    switch (status) {
-      case 'updating':
-        return 'text-blue-500';
-      case 'error':
-        return 'text-red-500';
-      default:
-        return 'text-gray-500';
-    }
-  };
-
   //shared slider state
   const [startIndex, setStartIndex] = useState(0);
   const maxLength = Math.max(
@@ -233,82 +218,8 @@ function App() {
     ...(sharedData.value.force ? Object.values(sharedData.value.force).map(arr => arr.length) : [0])
   );
 
-  // // Your mesh data
-  // const meshData = {
-  //   "1": {
-  //     dx: 0.1,
-  //     normal: [0.0, 0.0, 1.0],
-  //     points: [
-  //       [-3.0, -3.0, 0.0],
-  //       [0.0, 0.0, 0.0],
-  //       [3.0, 3.0, 0.0]
-  //     ]
-  //   },
-  //   "2": {
-  //     dx: 0.2,
-  //     normal: [0.0, 0.0, 1.0],
-  //     points: [
-  //       [-3.0, -3.0, 0.0],
-  //       [0.0, 0.0, 0.0],
-  //       [3.0, 3.0, 0.0]
-  //     ]
-  //   }
-  // };
-  // const geometryData = {
-  //   edges: [
-  //     [[-1.0, -1.0, 0.0], [1.0, 1.0, 0.0]],
-  //     [[1.0, -1.0, 0.0], [-1.0, 1.0, 0.0]]
-  //   ],
-  //   boundary: [
-  //     [[-2.0, -2.0, 0.0], [2.0, -2.0, 0.0]],
-  //     [[2.0, -2.0, 0.0], [2.0, 2.0, 0.0]]
-  //   ],
-  //   vertices: [
-  //     [[0.0, 0.0, 0.0], [0.0, 0.1, 0.0]], // Short vertical line to represent vertex
-  //   ]
-  // };
-
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'monitor':
-        return (
-          <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
-          <h2 className="text-2xl font-bold text-gray-800">
-            Real-time Data Monitor
-          </h2>
-          <div className="space-y-4">
-            {/* Display all fields in the value object */}
-            {Object.entries(sharedData.value).map(([field, value]) => (
-              <div key={field} className="p-3 bg-gray-50 rounded-lg">
-                {/* <div className="text-lg">
-                  {field}: <span className="font-semibold">{value}</span>
-                </div> */}
-                  <pre className="text-sm overflow-x-auto">
-                    {JSON.stringify({value})}
-                  </pre>
-                <div className={`text-sm ${getStatusColor(sharedData.status)}`}>
-                  Status: {sharedData.status}
-                </div>
-              </div>
-            ))}
-            
-            {sharedData.lastUpdate && (
-              <div className="text-sm text-gray-500">
-                Last Updated: {sharedData.lastUpdate.toLocaleTimeString()}
-              </div>
-            )}
-          </div>
-          <div className="space-y-4">
-          <h2 className="text-2xl font-bold text-gray-800">
-            sharedData
-          </h2>
-          <p className="text-sm overflow-x-auto">
-                    {JSON.stringify(sharedData.value)}
-            </p>
-          </div>
-        </div>
-        );
-
       case 'websocket':
         return (
           <div className="bg-white rounded-lg shadow-md p-6">
@@ -369,71 +280,69 @@ function App() {
           </div>
         );
 
-        case 'residual':
-          return (
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                Residual
-              </h2>
-              <div className="text-gray-600">
-                {sharedData.value && 'res' in sharedData.value ? (
-                  <TimeSeriesPlot 
-                    key="residual-plot" // Add this
-                    data={sharedData.value.res}
-                    title="Residuals"
-                    yAxisLabel="Residual"
-                    startIndex={startIndex}
-                    onStartIndexChange={setStartIndex}
-                    maxLength={maxLength}
-                  />
-                ) : (
-                  <div className="p-4 text-gray-500">No data available</div>
-                )}
-              </div>
+      case 'residual':
+        return (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              Residual
+            </h2>
+            <div className="text-gray-600">
+              {sharedData.value && 'res' in sharedData.value ? (
+                <TimeSeriesPlot 
+                  key="residual-plot"
+                  data={sharedData.value.res}
+                  title="Residuals"
+                  yAxisLabel="Residual"
+                  startIndex={startIndex}
+                  onStartIndexChange={setStartIndex}
+                  maxLength={maxLength}
+                />
+              ) : (
+                <div className="p-4 text-gray-500">No data available</div>
+              )}
             </div>
-          );
-        
-        case 'forces':
-          return (
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                Forces
-              </h2>
-              <div className="text-gray-600">
-                {sharedData.value && 'force' in sharedData.value ? (
-                  <TimeSeriesPlot 
-                    key="forces-plot" // Add this
-                    data={sharedData.value.force}
-                    title="Forces"
-                    yAxisLabel="Force"
-                    startIndex={startIndex}
-                    onStartIndexChange={setStartIndex}
-                    maxLength={maxLength}
-                  />
-                ) : (
-                  <div className="p-4 text-gray-500">No data available</div>
-                )}
-              </div>
+          </div>
+        );
+      
+      case 'forces':
+        return (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              Forces
+            </h2>
+            <div className="text-gray-600">
+              {sharedData.value && 'force' in sharedData.value ? (
+                <TimeSeriesPlot 
+                  key="forces-plot"
+                  data={sharedData.value.force}
+                  title="Forces"
+                  yAxisLabel="Force"
+                  startIndex={startIndex}
+                  onStartIndexChange={setStartIndex}
+                  maxLength={maxLength}
+                />
+              ) : (
+                <div className="p-4 text-gray-500">No data available</div>
+              )}
             </div>
-          );
+          </div>
+        );
 
-          case 'viewer':
-            return (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">
-                  Viewer
-                </h2>
-                <div className="text-gray-600">
-                  <Viewer 
-                    mesh={sharedData.value.mesh}
-                    // geometry={geometryData}
-                    geometry={sharedData.value.geometry}
-                    value_on_mesh={sharedData.value.value_on_mesh}
-                  />
-                </div>
-              </div>
-            );
-
+      case 'viewer':
+        return (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              Viewer
+            </h2>
+            <div className="text-gray-600">
+              <Viewer 
+                mesh={sharedData.value.mesh}
+                geometry={sharedData.value.geometry}
+                value_on_mesh={sharedData.value.value_on_mesh}
+              />
+            </div>
+          </div>
+        );
 
       default:
         return null;
@@ -443,13 +352,7 @@ function App() {
   return (
     <div className="w-full min-h-screen bg-gray-50 p-4">
       <div className="mx-auto mt-8">
-      {/* <div className="max-w-4xl mx-auto mt-8"> */}
         <div className="flex space-x-2 mb-[-1px]">
-          <Tab 
-            title="Monitor" 
-            isActive={activeTab === 'monitor'} 
-            onClick={() => setActiveTab('monitor')} 
-          />
           <Tab 
             title="WebSocket" 
             isActive={activeTab === 'websocket'} 

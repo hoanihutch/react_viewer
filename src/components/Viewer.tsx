@@ -40,33 +40,6 @@ const COLORS = {
   default: '#808080'   // Gray
 };
 
-// Function to map value to color using a gradient
-const getColorForValue = (value: number, min: number, max: number): { color: string; alpha: number } => {
-  const normalized = (value - min) / (max - min);
-  let r, g, b, alpha;
-
-  if (normalized < 0.5) {
-    const factor = normalized * 2;
-    r = Math.floor(factor * 255);
-    g = Math.floor(factor * 255);
-    b = 255;
-  } else {
-    const factor = (normalized - 0.5) * 2;
-    r = 255;
-    g = Math.floor((1 - factor) * 255);
-    b = Math.floor((1 - factor) * 255);
-  }
-
-  alpha = normalized < 0.25 || normalized > 0.75 ? 1.0 : 
-          normalized < 0.5 ? (0.5 - normalized) * 4 :
-          (normalized - 0.5) * 4;
-
-  return {
-    color: `rgb(${r}, ${g}, ${b})`,
-    alpha
-  };
-};
-
 const Legend: React.FC<{
   items: { name: string; color: string; visible: boolean; }[];
   onToggle: (name: string) => void;
@@ -75,7 +48,7 @@ const Legend: React.FC<{
   onValueSelect?: (value: string) => void;
   valueRange?: { min: number; max: number } | null;
 }> = ({ items, onToggle, meshValues = [], selectedValue, onValueSelect, valueRange }) => (
-  <div className="bg-white p-4 rounded shadow-lg h-full flex flex-col">
+  <div className="absolute top-4 right-4 bg-white p-4 rounded shadow-lg w-64">
     <h3 className="text-lg font-bold mb-4">Legend</h3>
     
     {meshValues.length > 0 && (
@@ -294,21 +267,9 @@ const Viewer: React.FC<ViewerProps> = ({ mesh, geometry, value_on_mesh }) => {
   }
 
   return (
-    <div className="flex w-full h-[calc(100vh-12rem)] gap-4">
-      <div className="flex-1 relative bg-gray-100 rounded-lg overflow-hidden">
-        <Canvas
-          camera={{ position: [5, 5, 5], fov: 60 }}
-        >
-          <Scene
-            mesh={mesh}
-            geometry={geometry}
-            valueOnMesh={value_on_mesh}
-            visibility={visibility}
-            selectedValue={selectedValue}
-          />
-        </Canvas>
-      </div>
-      <div className="w-64">
+    <div className="w-full flex flex-col gap-4">
+      {/* Legend only */}
+      <div>
         <Legend 
           items={legendItems}
           onToggle={toggleVisibility}

@@ -1,6 +1,10 @@
+// App.tsx
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
 import TimeSeriesPlot from './components/TimeSeriesPlot';
-import Viewer from './components/Viewer';
+import ViewerControls from './components/ViewerControls';
+import Scene from './components/Scene';
 
 // Message history utilities
 const MAX_MESSAGE_LENGTH = 50;
@@ -69,6 +73,14 @@ const Tab: React.FC<TabProps> = ({ title, isActive, onClick }) => (
 );
 
 function App() {
+
+  const [sceneVisibility, setSceneVisibility] = useState<{[key: string]: boolean}>({
+    wireframe: true,
+    values: true
+  });
+  
+  const [selectedValue, setSelectedValue] = useState<string>("");
+  
   const [activeTab, setActiveTab] = useState<'websocket' | 'settings' | 'residual' | 'forces' | 'viewer'>('websocket');
   const [sharedData, setSharedData] = useState<SharedData>({
     value: {},
@@ -84,6 +96,29 @@ function App() {
   
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<NodeJS.Timeout>();
+
+  const [backgroundSceneVisibility, setBackgroundSceneVisibility] = useState<{[key: string]: boolean}>({});
+
+  useEffect(() => {
+    const newVisibility: {[key: string]: boolean} = {};
+    
+    if (sharedData.value?.mesh) {
+      newVisibility.wireframe = true;
+      newVisibility.values = true;  // Add values visibility
+    }
+    
+    if (sharedData.value?.geometry) {
+      Object.keys(sharedData.value.geometry).forEach(key => {
+        newVisibility[key] = true;
+      });
+    }
+
+    if (sharedData.value?.value_on_mesh) {
+      newVisibility.values = true;  // Ensure values visibility is set if value_on_mesh exists
+    }
+
+    setBackgroundSceneVisibility(newVisibility);
+  }, [sharedData.value?.geometry, sharedData.value?.mesh, sharedData.value?.value_on_mesh]); 
 
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
@@ -328,21 +363,25 @@ function App() {
           </div>
         );
 
-      case 'viewer':
-        return (
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              Viewer
-            </h2>
-            <div className="text-gray-600">
-              <Viewer 
-                mesh={sharedData.value.mesh}
-                geometry={sharedData.value.geometry}
-                value_on_mesh={sharedData.value.value_on_mesh}
-              />
+        case 'viewer':
+          return (
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                Viewer Controls
+              </h2>
+              <div className="text-gray-600">
+                <ViewerControls 
+                  mesh={sharedData.value.mesh}
+                  geometry={sharedData.value.geometry}
+                  value_on_mesh={sharedData.value.value_on_mesh}
+                  visibility={sceneVisibility}
+                  selectedValue={selectedValue}
+                  onVisibilityChange={setSceneVisibility}
+                  onSelectedValueChange={setSelectedValue}
+                />
+              </div>
             </div>
-          </div>
-        );
+          );
 
       default:
         return null;
@@ -350,38 +389,59 @@ function App() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-gray-50 p-4">
-      <div className="mx-auto mt-8">
-        <div className="flex space-x-2 mb-[-1px]">
-          <Tab 
-            title="WebSocket" 
-            isActive={activeTab === 'websocket'} 
-            onClick={() => setActiveTab('websocket')} 
-          />
-          <Tab 
-            title="Settings" 
-            isActive={activeTab === 'settings'} 
-            onClick={() => setActiveTab('settings')} 
-          />
-          <Tab 
-            title="Residual" 
-            isActive={activeTab === 'residual'} 
-            onClick={() => setActiveTab('residual')} 
-          />
-          <Tab 
-            title="Forces" 
-            isActive={activeTab === 'forces'} 
-            onClick={() => setActiveTab('forces')} 
-          />
-          <Tab 
-            title="Viewer" 
-            isActive={activeTab === 'viewer'} 
-            onClick={() => setActiveTab('viewer')} 
-          />
-        </div>
+    <div className="w-full h-screen relative">
+      {/* Scene Container - Full screen with pointer events */}
+      <div className="absolute inset-0 z-0">
+        <Canvas camera={{ position: [5, 5, 5], fov: 60 }}>
+          <OrbitControls makeDefault />
+          {sharedData.value && (
+            <Scene
+              mesh={sharedData.value.mesh}
+              geometry={sharedData.value.geometry}
+              valueOnMesh={sharedData.value.value_on_mesh}
+              visibility={sceneVisibility}
+              selectedValue={selectedValue}
+            />
+          )}
+        </Canvas>
+      </div>
 
-        <div className="border border-gray-200 rounded-lg rounded-tl-none">
-          {renderTabContent()}
+      {/* Controls Container - Floating on top */}
+      <div className="absolute inset-x-0 top-0 z-10 p-4">
+        <div className="max-w-2xl mx-auto">
+          {/* Tabs */}
+          <div className="flex space-x-2 mb-[-1px]">
+            <Tab 
+              title="WebSocket" 
+              isActive={activeTab === 'websocket'} 
+              onClick={() => setActiveTab('websocket')} 
+            />
+            <Tab 
+              title="Settings" 
+              isActive={activeTab === 'settings'} 
+              onClick={() => setActiveTab('settings')} 
+            />
+            <Tab 
+              title="Residual" 
+              isActive={activeTab === 'residual'} 
+              onClick={() => setActiveTab('residual')} 
+            />
+            <Tab 
+              title="Forces" 
+              isActive={activeTab === 'forces'} 
+              onClick={() => setActiveTab('forces')} 
+            />
+            <Tab 
+              title="Viewer Controls" 
+              isActive={activeTab === 'viewer'} 
+              onClick={() => setActiveTab('viewer')} 
+            />
+          </div>
+
+          {/* Tab Content */}
+          <div className="border border-gray-200 rounded-lg rounded-tl-none bg-white/90 backdrop-blur-sm">
+            {renderTabContent()}
+          </div>
         </div>
       </div>
     </div>
